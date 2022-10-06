@@ -52,9 +52,9 @@ class WaypointSender(Node):
     r = re.compile(r'position:\s+x:(\s-*[0-9]+\.[0-9]+)\s+y:(\s-*[0-9]+\.[0-9]+)\s+z:(\s-*[0-9]+\.[0-9]+)\s+orientation:\s+x:(\s-*[0-9]+\.[0-9]+)\s+y:(\s-*[0-9]+\.[0-9]+)\s+z:(\s-*[0-9]+\.[0-9]+)\s+w:(\s-*[0-9]+\.[0-9]+)')
     with open(file, 'r') as f:
         wps = f.read()
-        print(wps)
+        # print(wps)
         res = r.findall(wps)
-        print(res)
+        # print(res)
         return res
 
 def main(args=None): 
