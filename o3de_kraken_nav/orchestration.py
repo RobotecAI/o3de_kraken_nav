@@ -48,13 +48,14 @@ class WaypointSender(Node):
         self.goal_succeeded = True
 
   def parse(self, file):
-      r = re.compile(r'position:\s+x:(\s-*[0-9]+\.[0-9]+)\s+y:(\s-*[0-9]+\.[0-9]+)\s+z:(\s-*[0-9]+\.[0-9]+)\s+orientation:\s+x:(\s-*[0-9]+\.[0-9]+)\s+y:(\s-*[0-9]+\.[0-9]+)\s+z:(\s-*[0-9]+\.[0-9]+)\s+w:(\s-*[0-9]+\.[0-9]+)')
-      with open(file, 'r') as f:
-          wps = f.read()
-          print(wps)
-          res = r.findall(wps)
-          print(res)
-          return res
+    print(">>> Loading path file...")
+    r = re.compile(r'position:\s+x:(\s-*[0-9]+\.[0-9]+)\s+y:(\s-*[0-9]+\.[0-9]+)\s+z:(\s-*[0-9]+\.[0-9]+)\s+orientation:\s+x:(\s-*[0-9]+\.[0-9]+)\s+y:(\s-*[0-9]+\.[0-9]+)\s+z:(\s-*[0-9]+\.[0-9]+)\s+w:(\s-*[0-9]+\.[0-9]+)')
+    with open(file, 'r') as f:
+        wps = f.read()
+        print(wps)
+        res = r.findall(wps)
+        print(res)
+        return res
 
 def main(args=None): 
   rclpy.init(args=args)
