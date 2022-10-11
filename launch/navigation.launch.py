@@ -15,39 +15,140 @@
 import pathlib
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, GroupAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import Node
+from launch.substitutions import LaunchConfiguration, PythonExpression, TextSubstitution
+from launch_ros.actions import Node, PushRosNamespace
 from nav2_common.launch import RewrittenYaml
 
+def substitute_namespace(namespace, value):
+    if not namespace:
+        return TextSubstitution(text=value)
+    else:
+        return PythonExpression(['str("', namespace, '")', "+", f"'/{value}'"])
+    
+def substitute_name(namespace, value):
+    if not namespace:
+        return TextSubstitution(text=value)
+    else:
+        return PythonExpression(['str("', namespace, '")', "+", f"'_{value}'"])
+
 def generate_launch_description():
+    namespace = "robot0"
+    
     package_dir = get_package_share_directory("o3de_kraken_nav")
     slam_toolbox_dir = get_package_share_directory('slam_toolbox')
     nav2_dir = get_package_share_directory("nav2_bringup")
 
     nav2_params_file = str(pathlib.Path(package_dir).joinpath('launch', 'config', 'navigation_params.yaml'))
     bt_xml_file = str(pathlib.Path(package_dir).joinpath('launch', 'config', 'bt.xml'))
+    slam_params_file = str(pathlib.Path(package_dir).joinpath('launch', 'config', 'slam_params.yaml'))
 
-    param_substitutions = {
-        'default_nav_to_pose_bt_xml': bt_xml_file}
+    # param_substitutions = {
+    #     'default_nav_to_pose_bt_xml': bt_xml_file
+    # }
+    
+    nav_param_substitutions = {
+        'default_nav_to_pose_bt_xml': bt_xml_file,
+        'robot_base_frame': substitute_namespace(namespace, "base_link")
+    }
+    slam_param_substitutions = {
+        'base_frame': substitute_namespace(namespace, "base_link")
+    }
+    
     configured_nav2_params = RewrittenYaml(
         source_file=nav2_params_file,
-        root_key='',
-        param_rewrites=param_substitutions,
+        root_key=namespace,
+        param_rewrites=nav_param_substitutions,
         convert_types=True)
     
-    slam = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([str(pathlib.Path(slam_toolbox_dir).joinpath('launch', 'online_async_launch.py'))]),
-        launch_arguments = {
-            'slam_params_file': str(pathlib.Path(package_dir).joinpath('launch', 'config', 'slam_params.yaml')),
-        }.items()
+    configured_slam_params = RewrittenYaml(
+        source_file=slam_params_file,
+        root_key=namespace,
+        param_rewrites=slam_param_substitutions,
+        convert_types=True)
+    
+    slam = GroupAction(
+        actions=[
+            PushRosNamespace(namespace),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource([str(pathlib.Path(slam_toolbox_dir).joinpath('launch', 'online_async_launch.py'))]),
+                launch_arguments = {
+                    'slam_params_file': configured_slam_params,
+                }.items()
+            ),
+        ]
     )
     
-    navigation = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([str(pathlib.Path(nav2_dir).joinpath('launch', 'navigation_launch.py'))]),
-        launch_arguments = {
-            'params_file': configured_nav2_params,
-        }.items()
+    # TODO - add relay na goal_pose
+    # TODO - fix cmd_vel -> {namespace}/cmd_vel
+    
+    remappings = [('robot0/tf', 'tf'),
+                ('robot0/tf_static', 'tf_static')]
+    
+    lifecycle_nodes = ['controller_server',
+                       'planner_server',
+                       'recoveries_server',
+                       'bt_navigator',
+                       'waypoint_follower']
+    
+    nav_nodes = GroupAction(
+        actions=[
+            Node(
+                package='nav2_controller',
+                executable='controller_server',
+                output='screen',
+                # name=substitute_name(namespace, "nav2_controller"),
+                namespace=namespace,
+                parameters=[configured_nav2_params],
+                remappings=remappings),
+
+            Node(
+                package='nav2_planner',
+                executable='planner_server',
+                name='planner_server',
+                output='screen',
+                namespace=namespace,
+                parameters=[configured_nav2_params],
+                remappings=remappings),
+
+            Node(
+                package='nav2_recoveries',
+                executable='recoveries_server',
+                name='recoveries_server',
+                output='screen',
+                namespace=namespace,
+                parameters=[configured_nav2_params],
+                remappings=remappings),
+
+            Node(
+                package='nav2_bt_navigator',
+                executable='bt_navigator',
+                name='bt_navigator',
+                output='screen',
+                namespace=namespace,
+                parameters=[configured_nav2_params],
+                remappings=remappings),
+
+            Node(
+                package='nav2_waypoint_follower',
+                executable='waypoint_follower',
+                name='waypoint_follower',
+                output='screen',
+                namespace=namespace,
+                parameters=[configured_nav2_params],
+                remappings=remappings),
+
+            Node(
+                package='nav2_lifecycle_manager',
+                executable='lifecycle_manager',
+                name='lifecycle_manager_navigation',
+                output='screen',
+                namespace=namespace,
+                parameters=[{'use_sim_time': True},
+                            {'autostart': True},
+                            {'node_names': lifecycle_nodes}]),
+            ]
     )
     
     pointcloud_to_laserscan = Node(
@@ -61,7 +162,7 @@ def generate_launch_description():
             'range_max': 20.0
         }],
         remappings=[
-            ('/cloud_in', '/pc'),
+            ('/cloud_in', substitute_namespace(namespace, 'pc')),
         ]
     )
     
@@ -74,7 +175,10 @@ def generate_launch_description():
             'timeout_control_interval': 0.1,
             'control_timeout': 0.2,
             'publish_zeros_on_timeout': True
-        }]
+        }],
+        remappings=[
+            ('/ackermann_vel', substitute_namespace(namespace, 'ackermann_vel')),
+        ]
     )
     
     rviz = Node(
@@ -82,7 +186,7 @@ def generate_launch_description():
         executable='rviz2',
         name='slam',
         arguments=[
-            '-d', str(pathlib.Path(package_dir).joinpath('launch', 'config', 'config.rviz')),
+            '-d', str(pathlib.Path(package_dir).joinpath('launch', 'config', 'config_multi.rviz')),
         ]
     )
     
@@ -90,7 +194,7 @@ def generate_launch_description():
     ld.add_action(pointcloud_to_laserscan)
     ld.add_action(twist_to_ackermann)
     ld.add_action(slam)
-    ld.add_action(navigation)
+    ld.add_action(nav_nodes)
     ld.add_action(rviz)
     
     return ld
