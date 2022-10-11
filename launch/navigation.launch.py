@@ -16,11 +16,12 @@ import pathlib
 from unicodedata import name
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, GroupAction
+from launch.actions import IncludeLaunchDescription, GroupAction, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression, TextSubstitution
 from launch_ros.actions import Node, PushRosNamespace
 from nav2_common.launch import RewrittenYaml
+from launch.conditions import IfCondition
 
 def substitute_namespace(namespace, value):
     if not namespace:
@@ -35,8 +36,20 @@ def substitute_name(namespace, value):
         return PythonExpression(['str("', namespace, '")', "+", f"'_{value}'"])
 
 def generate_launch_description():
-    namespace = "robot0"
-    
+    # namespace = "robot0"
+
+    namespace = LaunchConfiguration('namespace')
+    declare_namespace_cmd = DeclareLaunchArgument(
+        'namespace',
+        default_value='',
+    )
+
+    # slam_master = LaunchConfiguration('slam_master')
+    # declare_slam_master_cmd = DeclareLaunchArgument(
+    #     'slam_master',
+    #     default_value='True',
+    # )
+
     package_dir = get_package_share_directory("o3de_kraken_nav")
     slam_toolbox_dir = get_package_share_directory('slam_toolbox')
     nav2_dir = get_package_share_directory("nav2_bringup")
@@ -51,10 +64,12 @@ def generate_launch_description():
     
     nav_param_substitutions = {
         'default_nav_to_pose_bt_xml': bt_xml_file,
-        'robot_base_frame': substitute_namespace(namespace, "base_link")
+        'robot_base_frame': substitute_namespace(namespace, "base_link"),
+        'topic': substitute_namespace(namespace, "scan")
     }
     slam_param_substitutions = {
-        'base_frame': substitute_namespace(namespace, "base_link")
+        'base_frame': substitute_namespace(namespace, "base_link"),
+        # 'scan_topic': substitute_namespace(namespace, "scan")
     }
     
     configured_nav2_params = RewrittenYaml(
@@ -74,6 +89,7 @@ def generate_launch_description():
             PushRosNamespace(namespace),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource([str(pathlib.Path(slam_toolbox_dir).joinpath('launch', 'online_async_launch.py'))]),
+                # condition=IfCondition(slam_master),
                 launch_arguments = {
                     'slam_params_file': configured_slam_params,
                 }.items()
@@ -94,7 +110,7 @@ def generate_launch_description():
     #                    'waypoint_follower']
     
     pc_relay = Node(
-        name="tf_relay",
+        name="pc_relay",
         package="topic_tools",
         executable="relay",
         # namespace=namespace,
@@ -154,7 +170,7 @@ def generate_launch_description():
         }],
         remappings=[
             ('cloud_in', 'pc'),
-            ('scan', '/scan')
+            # ('scan', '/scan')
         ]
     )
     
@@ -184,6 +200,8 @@ def generate_launch_description():
     )
     
     ld = LaunchDescription()
+    ld.add_action(declare_namespace_cmd)
+    # ld.add_action(declare_slam_master_cmd)
     ld.add_action(tf_relay)
     ld.add_action(tf_static_relay)
     ld.add_action(pc_relay)
