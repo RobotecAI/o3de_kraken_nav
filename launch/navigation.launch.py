@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import pathlib
+from unicodedata import name
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, GroupAction
@@ -58,7 +59,7 @@ def generate_launch_description():
     
     configured_nav2_params = RewrittenYaml(
         source_file=nav2_params_file,
-        root_key=namespace,
+        root_key='',
         param_rewrites=nav_param_substitutions,
         convert_types=True)
     
@@ -83,78 +84,68 @@ def generate_launch_description():
     # TODO - add relay na goal_pose
     # TODO - fix cmd_vel -> {namespace}/cmd_vel
     
-    remappings = [('robot0/tf', 'tf'),
-                ('robot0/tf_static', 'tf_static')]
+    # remappings = [('robot0/tf', 'tf'),
+    #             ('robot0/tf_static', 'tf_static')]
     
-    lifecycle_nodes = ['controller_server',
-                       'planner_server',
-                       'recoveries_server',
-                       'bt_navigator',
-                       'waypoint_follower']
+    # lifecycle_nodes = ['controller_server',
+    #                    'planner_server',
+    #                    'recoveries_server',
+    #                    'bt_navigator',
+    #                    'waypoint_follower']
     
+    pc_relay = Node(
+        name="tf_relay",
+        package="topic_tools",
+        executable="relay",
+        # namespace=namespace,
+        parameters=[
+            {'input_topic': substitute_namespace(namespace, 'pc')},
+            {'output_topic': '/pc'}
+        ]
+    )
+
+    tf_relay = Node(
+        name="tf_relay",
+        package="topic_tools",
+        executable="relay",
+        # namespace=namespace,
+        parameters=[
+            {'input_topic': '/tf'},
+            {'output_topic': substitute_namespace(namespace, 'tf')}
+        ]
+    )
+
+    tf_static_relay = Node(
+        name="tf_static_relay",
+        package="topic_tools",
+        executable="relay",
+        # namespace=namespace,
+        parameters=[
+            {'input_topic': '/tf_static'},
+            {'output_topic': substitute_namespace(namespace, 'tf_static')}
+        ]
+    )
+
     nav_nodes = GroupAction(
         actions=[
-            Node(
-                package='nav2_controller',
-                executable='controller_server',
-                output='screen',
-                # name=substitute_name(namespace, "nav2_controller"),
-                namespace=namespace,
-                parameters=[configured_nav2_params],
-                remappings=remappings),
-
-            Node(
-                package='nav2_planner',
-                executable='planner_server',
-                name='planner_server',
-                output='screen',
-                namespace=namespace,
-                parameters=[configured_nav2_params],
-                remappings=remappings),
-
-            Node(
-                package='nav2_recoveries',
-                executable='recoveries_server',
-                name='recoveries_server',
-                output='screen',
-                namespace=namespace,
-                parameters=[configured_nav2_params],
-                remappings=remappings),
-
-            Node(
-                package='nav2_bt_navigator',
-                executable='bt_navigator',
-                name='bt_navigator',
-                output='screen',
-                namespace=namespace,
-                parameters=[configured_nav2_params],
-                remappings=remappings),
-
-            Node(
-                package='nav2_waypoint_follower',
-                executable='waypoint_follower',
-                name='waypoint_follower',
-                output='screen',
-                namespace=namespace,
-                parameters=[configured_nav2_params],
-                remappings=remappings),
-
-            Node(
-                package='nav2_lifecycle_manager',
-                executable='lifecycle_manager',
-                name='lifecycle_manager_navigation',
-                output='screen',
-                namespace=namespace,
-                parameters=[{'use_sim_time': True},
-                            {'autostart': True},
-                            {'node_names': lifecycle_nodes}]),
-            ]
+            PushRosNamespace(namespace),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource([str(pathlib.Path(nav2_dir).joinpath('launch', 'navigation_launch.py'))]),
+                launch_arguments = {
+                    'params_file': configured_nav2_params,
+                    'namespace': namespace,
+                    'use_sim_time': 'True',
+                    'autostart': 'True'
+                }.items()
+            )
+        ]
     )
     
     pointcloud_to_laserscan = Node(
         package='pointcloud_to_laserscan',
         executable='pointcloud_to_laserscan_node',
         name='pc_to_laserscan',
+        namespace=namespace,
         parameters=[{
             'min_height': 0.1,
             'max_height': 5.0,
@@ -162,7 +153,8 @@ def generate_launch_description():
             'range_max': 20.0
         }],
         remappings=[
-            ('/cloud_in', substitute_namespace(namespace, 'pc')),
+            ('cloud_in', 'pc'),
+            ('scan', '/scan')
         ]
     )
     
@@ -170,6 +162,7 @@ def generate_launch_description():
         package='o3de_kraken_nav',
         executable='twist_to_ackermann',
         name='twist_to_ackermann',
+        namespace=namespace,
         parameters=[{
             'wheelbase': 2.2,
             'timeout_control_interval': 0.1,
@@ -191,6 +184,9 @@ def generate_launch_description():
     )
     
     ld = LaunchDescription()
+    ld.add_action(tf_relay)
+    ld.add_action(tf_static_relay)
+    ld.add_action(pc_relay)
     ld.add_action(pointcloud_to_laserscan)
     ld.add_action(twist_to_ackermann)
     ld.add_action(slam)
