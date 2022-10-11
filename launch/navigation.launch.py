@@ -44,11 +44,11 @@ def generate_launch_description():
         default_value='',
     )
 
-    # slam_master = LaunchConfiguration('slam_master')
-    # declare_slam_master_cmd = DeclareLaunchArgument(
-    #     'slam_master',
-    #     default_value='True',
-    # )
+    slam_master = LaunchConfiguration('slam_master')
+    declare_slam_master_cmd = DeclareLaunchArgument(
+        'slam_master',
+        default_value='True',
+    )
 
     package_dir = get_package_share_directory("o3de_kraken_nav")
     slam_toolbox_dir = get_package_share_directory('slam_toolbox')
@@ -69,6 +69,7 @@ def generate_launch_description():
     }
     slam_param_substitutions = {
         'base_frame': substitute_namespace(namespace, "base_link"),
+        # 'map_frame': substitute_namespace(namespace, "map")
         # 'scan_topic': substitute_namespace(namespace, "scan")
     }
     
@@ -85,11 +86,11 @@ def generate_launch_description():
         convert_types=True)
     
     slam = GroupAction(
+        condition=IfCondition(slam_master),
         actions=[
             PushRosNamespace(namespace),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource([str(pathlib.Path(slam_toolbox_dir).joinpath('launch', 'online_async_launch.py'))]),
-                # condition=IfCondition(slam_master),
                 launch_arguments = {
                     'slam_params_file': configured_slam_params,
                 }.items()
@@ -223,7 +224,7 @@ def generate_launch_description():
     
     ld = LaunchDescription()
     ld.add_action(declare_namespace_cmd)
-    # ld.add_action(declare_slam_master_cmd)
+    ld.add_action(declare_slam_master_cmd)
     ld.add_action(tf_relay)
     ld.add_action(local_costmap_scan_relay)
     ld.add_action(global_costmap_scan_relay)
