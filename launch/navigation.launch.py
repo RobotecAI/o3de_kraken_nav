@@ -65,7 +65,7 @@ def generate_launch_description():
     nav_param_substitutions = {
         'default_nav_to_pose_bt_xml': bt_xml_file,
         'robot_base_frame': substitute_namespace(namespace, "base_link"),
-        'topic': substitute_namespace(namespace, "scan")
+        # 'topic': substitute_namespace(namespace, "scan")
     }
     slam_param_substitutions = {
         'base_frame': substitute_namespace(namespace, "base_link"),
@@ -109,6 +109,28 @@ def generate_launch_description():
     #                    'bt_navigator',
     #                    'waypoint_follower']
     
+    local_costmap_scan_relay = Node(
+        name="pc_relay",
+        package="topic_tools",
+        executable="relay",
+        # namespace=namespace,
+        parameters=[
+            {'input_topic': substitute_namespace(namespace, 'scan')},
+            {'output_topic': substitute_namespace(namespace, 'local_costmap/scan')}
+        ]
+    )
+
+    global_costmap_scan_relay = Node(
+        name="pc_relay",
+        package="topic_tools",
+        executable="relay",
+        # namespace=namespace,
+        parameters=[
+            {'input_topic': substitute_namespace(namespace, 'scan')},
+            {'output_topic': substitute_namespace(namespace, 'global_costmap/scan')}
+        ]
+    )
+
     pc_relay = Node(
         name="pc_relay",
         package="topic_tools",
@@ -203,6 +225,8 @@ def generate_launch_description():
     ld.add_action(declare_namespace_cmd)
     # ld.add_action(declare_slam_master_cmd)
     ld.add_action(tf_relay)
+    ld.add_action(local_costmap_scan_relay)
+    ld.add_action(global_costmap_scan_relay)
     ld.add_action(tf_static_relay)
     ld.add_action(pc_relay)
     ld.add_action(pointcloud_to_laserscan)
