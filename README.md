@@ -104,3 +104,11 @@ export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 ros2 launch o3de_kraken_nav navigation.launch.py
 ```
 
+## Running nav stack with multiple vehicles
+
+1. Spawn robots (TODO)
+2. Run the stack for each robot. Change the `<NAMESPACE>` for robot namespace and choose whether to use slam:
+
+```bash
+ros2 launch o3de_kraken_nav navigation_multi.launch.py namespace:=<NAMESPACE> use_slam:=<True/False>
+```
