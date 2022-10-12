@@ -1,6 +1,5 @@
 slam_toolbox:
   ros__parameters:
-    use_sim_time: true
 
     # Plugin params
     solver_plugin: solver_plugins::CeresSolver
@@ -14,8 +13,15 @@ slam_toolbox:
     odom_frame: odom
     map_frame: map
     base_frame: base_link
-    scan_topic: scan
+    scan_topic: /scan
     mode: mapping #localization
+
+    # if you'd like to immediately start continuing a map at a given pose
+    # or at the dock, but they are mutually exclusive, if pose is given
+    # will use pose
+    #map_file_name: test_steve
+    # map_start_pose: [0.0, 0.0, 0.0]
+    #map_start_at_dock: true
 
     debug_logging: false
     throttle_scans: 1
