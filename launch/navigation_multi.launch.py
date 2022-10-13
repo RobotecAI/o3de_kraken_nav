@@ -39,8 +39,6 @@ def substitute_name(namespace, value):
         return PythonExpression(['str("', namespace, '")', "+", f"'_{value}'"])
 
 def generate_launch_description():
-    # namespace = "robot0"
-
     namespace = LaunchConfiguration('namespace')
     declare_namespace_cmd = DeclareLaunchArgument(
         'namespace',
@@ -50,6 +48,12 @@ def generate_launch_description():
     use_slam = LaunchConfiguration('use_slam')
     declare_use_slam_cmd = DeclareLaunchArgument(
         'use_slam',
+        default_value='True',
+    )
+    
+    rviz = LaunchConfiguration('rviz')
+    declare_rviz_cmd = DeclareLaunchArgument(
+        'rviz',
         default_value='True',
     )
 
@@ -234,18 +238,24 @@ def generate_launch_description():
         ]
     )
     
-    rviz = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='slam',
-        arguments=[
-            '-d', str(pathlib.Path(package_dir).joinpath('launch', 'config', 'config_multi.rviz')),
+    rviz = GroupAction(
+        condition=IfCondition(rviz),
+        actions=[
+            Node(
+                package='rviz2',
+                executable='rviz2',
+                name='slam',
+                arguments=[
+                    '-d', str(pathlib.Path(package_dir).joinpath('launch', 'config', 'config_multi.rviz')),
+                ]
+            )
         ]
     )
     
     ld = LaunchDescription()
     ld.add_action(declare_namespace_cmd)
     ld.add_action(declare_use_slam_cmd)
+    ld.add_action(declare_rviz_cmd)
     ld.add_action(tf_odom_container)
     ld.add_action(tf_map_container)
     ld.add_action(tf_relay)
