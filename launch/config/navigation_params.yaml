@@ -72,7 +72,7 @@ controller_server:
       stateful: True
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
-      desired_linear_vel: 0.8
+      desired_linear_vel: 1.0
       lookahead_dist: 0.5
       min_lookahead_dist: 0.4
       max_lookahead_dist: 0.9
@@ -114,7 +114,7 @@ local_costmap:
       rolling_window: true
       resolution: 0.1
       plugins: ["obstacle_layer", "inflation_layer"]
-      footprint: "[ [2.5, 0.8], [2.5, -0.8], [-0.5, -0.8], [-0.5, 0.8] ]"
+      footprint: "[ [2.5, 0.4], [2.5, -0.4], [-0.5, -0.4], [-0.5, 0.4] ]"
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 20.0
@@ -153,7 +153,7 @@ global_costmap:
       global_frame: map
       robot_base_frame: base_link
       use_sim_time: True
-      footprint: "[ [2.5, 0.8], [2.5, -0.8], [-0.5, -0.8], [-0.5, 0.8] ]"
+      footprint: "[ [2.5, 0.4], [2.5, -0.4], [-0.5, -0.4], [-0.5, 0.4] ]"
       resolution: 0.2
       rolling_window: true
       track_unknown_space: true

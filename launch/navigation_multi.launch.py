@@ -153,7 +153,7 @@ def generate_launch_description():
     tf_odom_container = ComposableNodeContainer(
         condition=UnlessCondition(use_slam),
         name='image_container',
-        namespace='',
+        namespace=namespace,
         package='rclcpp_components',
         executable='component_container',
         composable_node_descriptions=[
@@ -171,7 +171,7 @@ def generate_launch_description():
 
     tf_map_container = ComposableNodeContainer(
         name='image_container',
-        namespace='',
+        namespace=namespace,
         package='rclcpp_components',
         executable='component_container',
         composable_node_descriptions=[
