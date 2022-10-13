@@ -48,7 +48,7 @@ def generate_launch_description():
     use_slam = LaunchConfiguration('use_slam')
     declare_use_slam_cmd = DeclareLaunchArgument(
         'use_slam',
-        default_value='True',
+        default_value='False',
     )
     
     rviz = LaunchConfiguration('rviz')
